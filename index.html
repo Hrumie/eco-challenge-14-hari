@@ -5,7 +5,11 @@
 *{box-sizing:border-box}body{font-family:Arial,sans-serif;margin:0;background:#f1f8f3;color:#23412c}.wrap{max-width:900px;margin:auto;padding:24px 16px}.hero{text-align:center;padding:18px}.card{background:white;border-radius:18px;padding:20px;margin:14px 0;box-shadow:0 6px 20px #0001}input{width:100%;padding:12px;margin:7px 0;border:1px solid #cbdccc;border-radius:10px;font-size:16px}button{border:0;border-radius:11px;padding:12px;cursor:pointer}.start,.check{background:#3f7d4b;color:white;width:100%}.check:disabled{background:#aab7ac}.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:9px}.day{background:#eaf4eb;color:#23412c;min-height:82px}.day.done{background:#d8efdc}.day.locked{opacity:.45}.day.selected{outline:3px solid #3f7d4b}.emoji{font-size:23px;display:block}.progress{height:12px;background:#e3ebe4;border-radius:20px;overflow:hidden}.bar{height:100%;background:#4d9258;width:0}.hidden{display:none}.detail{text-align:center}.muted{font-size:13px;color:#718075;text-align:center}@media(max-width:600px){.grid{grid-template-columns:repeat(2,1fr)}}
 </style></head><body><main class="wrap">
 <header class="hero"><h1>🌱 14 Hari, 14 Aksi Kecil</h1><p>Langkah kecil, dampak berarti.</p></header>
-<section id="login" class="card"><h2>👋 Mulai Challenge</h2><p>Masukkan nama dan NPM kamu.</p><input id="name" placeholder="Nama lengkap"><input id="npm" placeholder="NPM"><button class="start" onclick="start()">Mulai Challenge</button></section>
+<section id="login" class="card"><h2>👋 Mulai Challenge</h2><p>Masukkan nama dan NPM kamu.</p>
+<input id="name" placeholder="Nama lengkap">
+<input id="npm" placeholder="NPM">
+<input id="kode" type="password" placeholder="Kode akses kelas">
+<button class="start" onclick="start()">Mulai Challenge</button></section>
 <section id="app" class="hidden"><div class="card"><b>Peserta: <span id="who"></span></b><p>Progres: <b id="count">0 / 14 hari</b></p><div class="progress"><div id="bar" class="bar"></div></div><p class="muted" id="status"></p></div>
 <div id="days" class="grid"></div><div class="card detail"><h2 id="title">Pilih hari</h2><p id="desc">Klik hari yang tersedia untuk melihat aksinya.</p><p class="muted">“Bumi adalah amanah yang dipercayakan kepada kita untuk dijaga.”</p><button id="check" class="check" disabled onclick="checkIn()">Sudah Dilakukan!</button></div>
 <div id="finish" class="card hidden detail"><h2>🎉 Eco Survivor!</h2><p>Kamu berhasil menyelesaikan 14 aksi kecil. Terima kasih sudah menjaga bumi! 🌎💚</p></div></section>
