@@ -1,0 +1,297 @@
+
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Dashboard Admin — Eco Challenge</title>
+
+<style>
+*{box-sizing:border-box}
+body{margin:0;font-family:Arial,sans-serif;background:#f1f8f3;color:#23412c}
+.wrap{max-width:1050px;margin:auto;padding:28px 16px}
+.hero{text-align:center;margin-bottom:24px}
+.hero p{color:#718075}
+.card,.stat{background:white;border-radius:18px;padding:20px;box-shadow:0 6px 20px #0001}
+.stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:20px 0}
+.num{font-size:30px;font-weight:bold;margin-bottom:6px}
+.toolbar{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px}
+input,button{font:inherit;border-radius:10px;padding:11px 14px}
+input{border:1px solid #cbd9cd;min-width:0;flex:1}
+button{background:#3f7d4b;color:white;border:0;cursor:pointer}
+button:disabled{opacity:.6;cursor:wait}
+.status{padding:12px;border-radius:10px;margin:12px 0;overflow-wrap:anywhere}
+.info{background:#edf5ee}
+.error{background:#fff0ee;color:#9c3027}
+.table-wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;min-width:650px}
+th,td{text-align:left;padding:11px;border-bottom:1px solid #e4ebe5}
+th{background:#edf5ee}
+.note{font-size:13px;color:#718075;line-height:1.5}
+@media(max-width:600px){
+ .stats{grid-template-columns:1fr}
+ .wrap{padding:20px 12px}
+ .card,.stat{padding:15px}
+}
+</style>
+</head>
+
+<body>
+<main class="wrap">
+  <header class="hero">
+    <h1>📊 Dashboard Admin</h1>
+    <p>14 Hari, 14 Aksi Kecil 🌱</p>
+  </header>
+
+  <section class="card">
+    <h2>Akses Admin</h2>
+    <p class="note">Masukkan kode akses yang sama dengan CHALLENGE_CODE di Apps Script.</p>
+
+    <form id="loginForm" class="toolbar">
+      <input id="kode" type="password"
+        placeholder="Kode akses challenge"
+        autocomplete="off" required>
+      <button id="loadButton" type="submit">Masuk / Muat Data</button>
+    </form>
+
+    <div id="message" class="status info" role="status" aria-live="polite">
+      Masukkan kode akses untuk memuat data peserta.
+    </div>
+  </section>
+
+  <section class="stats">
+    <div class="stat">
+      <div class="num" id="total">—</div>
+      Total peserta
+    </div>
+    <div class="stat">
+      <div class="num" id="active">—</div>
+      Sudah mulai
+    </div>
+    <div class="stat">
+      <div class="num" id="finished">—</div>
+      Selesai 14 hari 🏆
+    </div>
+  </section>
+
+  <section class="card">
+    <div class="toolbar">
+      <button id="refreshButton" type="button">↻ Muat Ulang</button>
+      <button id="logoutButton" type="button">Keluar</button>
+    </div>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Nama</th>
+            <th>NPM</th>
+            <th>Progres</th>
+            <th>Check-in terakhir</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody id="rows">
+          <tr><td colspan="5">Belum ada data yang dimuat.</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <p class="note">
+      Data diambil dari Google Sheets melalui Apps Script.
+      Tekan Muat Ulang untuk mengambil data terbaru.
+    </p>
+  </section>
+</main>
+
+<script>
+"use strict";
+
+const API_URL =
+  "https://script.google.com/macros/s/AKfycbwJHXm6V1U1notBOOrh1af-1gekXmjn2Dgjomi7dtEI7DF3Ew9ybcCWexh-104XpYw/exec";
+
+const $ = id => document.getElementById(id);
+let requestNumber = 0;
+let activeScript = null;
+let currentCode = "";
+
+function showMessage(text, isError = false) {
+  const el = $("message");
+  el.textContent = text;
+  el.className = "status " + (isError ? "error" : "info");
+}
+
+function clearTable(message) {
+  $("rows").replaceChildren();
+  const tr = document.createElement("tr");
+  const td = document.createElement("td");
+  td.colSpan = 5;
+  td.textContent = message;
+  tr.appendChild(td);
+  $("rows").appendChild(tr);
+}
+
+function formatDate(value) {
+  if (!value) return "—";
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return "—";
+  return d.toLocaleString("id-ID", {
+    dateStyle: "medium",
+    timeStyle: "short"
+  });
+}
+
+function renderData(data) {
+  if (!data || data.ok !== true ||
+      !Array.isArray(data.participants)) {
+    throw new Error(data?.message || "Respons server tidak valid.");
+  }
+
+  $("total").textContent = data.total ?? data.participants.length;
+  $("active").textContent = data.active ?? 0;
+  $("finished").textContent = data.finished ?? 0;
+
+  const rows = $("rows");
+  rows.replaceChildren();
+
+  if (data.participants.length === 0) {
+    clearTable("Belum ada peserta terdaftar.");
+    return;
+  }
+
+  data.participants.forEach(person => {
+    const tr = document.createElement("tr");
+    const completed = Array.isArray(person.completed)
+      ? person.completed
+      : [];
+
+    const values = [
+      person.nama || "—",
+      person.npm || "—",
+      completed.length + "/14",
+      formatDate(person.checkinTerakhir),
+      completed.length === 14
+        ? "🏆 Selesai"
+        : (completed.length > 0 ? "⏳ Berjalan" : "Belum mulai")
+    ];
+
+    values.forEach(value => {
+      const td = document.createElement("td");
+      td.textContent = String(value);
+      tr.appendChild(td);
+    });
+
+    rows.appendChild(tr);
+  });
+}
+
+function loadData() {
+  const code = $("kode").value.trim();
+
+  if (!code) {
+    showMessage("Masukkan kode akses terlebih dahulu.", true);
+    $("kode").focus();
+    return;
+  }
+
+  currentCode = code;
+  const requestId = ++requestNumber;
+
+  if (activeScript) {
+    activeScript.remove();
+    activeScript = null;
+  }
+
+  $("loadButton").disabled = true;
+  $("refreshButton").disabled = true;
+  showMessage("Sedang mengambil data peserta…");
+
+  const callbackName = "ecoAdminCallback" + requestId;
+
+  const cleanup = () => {
+    if (activeScript) {
+      activeScript.remove();
+      activeScript = null;
+    }
+    delete window[callbackName];
+    $("loadButton").disabled = false;
+    $("refreshButton").disabled = false;
+  };
+
+  window[callbackName] = function(data) {
+    if (requestId !== requestNumber) return;
+
+    cleanup();
+
+    if (!data || data.ok !== true) {
+      showMessage(
+        data?.message || "Gagal mengambil data.",
+        true
+      );
+      return;
+    }
+
+    try {
+      renderData(data);
+      showMessage("Data berhasil dimuat dari Google Sheets.");
+    } catch (error) {
+      showMessage(error.message || "Gagal menampilkan data.", true);
+    }
+  };
+
+  const params = new URLSearchParams({
+    action: "adminData",
+    kode: code,
+    callback: callbackName
+  });
+
+  const script = document.createElement("script");
+  activeScript = script;
+  script.src = API_URL + "?" + params.toString();
+
+  script.onerror = function() {
+    if (requestId !== requestNumber) return;
+    cleanup();
+    showMessage(
+      "Koneksi gagal. Periksa internet, URL Web App, dan deployment Apps Script.",
+      true
+    );
+  };
+
+  document.head.appendChild(script);
+}
+
+$("loginForm").addEventListener("submit", event => {
+  event.preventDefault();
+  loadData();
+});
+
+$("refreshButton").addEventListener("click", () => {
+  if (!currentCode) {
+    showMessage("Masukkan kode akses terlebih dahulu.", true);
+    $("kode").focus();
+    return;
+  }
+  $("kode").value = currentCode;
+  loadData();
+});
+
+$("logoutButton").addEventListener("click", () => {
+  ++requestNumber;
+  if (activeScript) {
+    activeScript.remove();
+    activeScript = null;
+  }
+
+  currentCode = "";
+  $("kode").value = "";
+  $("total").textContent = "—";
+  $("active").textContent = "—";
+  $("finished").textContent = "—";
+  clearTable("Silakan masuk kembali untuk melihat data.");
+  showMessage("Kamu sudah keluar dari dashboard.");
+  $("kode").focus();
+});
+</script>
+</body>
+</html>
