@@ -10,12 +10,235 @@
 <div id="days" class="grid"></div><div class="card detail"><h2 id="title">Pilih hari</h2><p id="desc">Klik hari yang tersedia untuk melihat aksinya.</p><p class="muted">“Bumi adalah amanah yang dipercayakan kepada kita untuk dijaga.”</p><button id="check" class="check" disabled onclick="checkIn()">Sudah Dilakukan!</button></div>
 <div id="finish" class="card hidden detail"><h2>🎉 Eco Survivor!</h2><p>Kamu berhasil menyelesaikan 14 aksi kecil. Terima kasih sudah menjaga bumi! 🌎💚</p></div></section>
 </main><script>
-const acts=[["🥤","Bawa Botol Minum Sendiri","Gunakan botol minum sendiri dan kurangi botol plastik sekali pakai."],["🛍️","Kurangi Kantong Plastik","Bawa tas belanja sendiri jika memungkinkan."],["💡","Hemat Listrik","Matikan lampu atau perangkat yang tidak digunakan."],["🗑️","Jaga Kebersihan","Buang sampah pada tempatnya dan rapikan area sekitar."],["📄","Kurangi Penggunaan Kertas","Gunakan catatan digital jika memungkinkan."],["🚰","Isi Ulang, Jangan Ganti","Isi ulang botol minum daripada membeli botol baru."],["💧","Hemat Air","Gunakan air secukupnya dan tutup keran."],["🍴","Bawa Alat Makan Sendiri","Gunakan alat makan yang bisa dipakai berulang kali."],["🪴","Rawat Tanaman","Siram atau rawat satu tanaman."],["🚶","Lebih Banyak Berjalan Kaki","Berjalan untuk perjalanan dekat jika aman."],["♻️","Gunakan Kembali","Pakai kembali barang yang masih layak."],["📣","Ajak Teman Peduli","Ajak satu teman melakukan aksi ramah lingkungan."],["🧹","Bersihkan Ruangmu","Bersihkan meja atau ruang belajar."],["🌎","Satu Aksi Kecil Terakhir","Pilih aksi ramah lingkungan yang ingin kamu teruskan."]];
-let p=null,cur=-1,key="";
-function start(){let name=document.getElementById('name').value.trim(),npm=document.getElementById('npm').value.trim();if(!name||!npm){alert('Isi nama dan NPM dulu ya!');return}key='eco14_'+npm.toLowerCase().replace(/[^a-z0-9_-]/g,'');p=JSON.parse(localStorage.getItem(key)||'null')||{name,npm,completed:[]};p.name=name;p.npm=npm;delete p.nim;save();document.getElementById('who').textContent=name+' ('+npm+')';document.getElementById('login').classList.add('hidden');document.getElementById('app').classList.remove('hidden');render()}
-function save(){localStorage.setItem(key,JSON.stringify(p))}
-function available(i){if(i===0)return true;if(!p.completed[i-1])return false;return Date.now()-Date.parse(p.completed[i-1].date)>=86400000}
-function render(){let box=document.getElementById('days');box.innerHTML='';acts.forEach((a,i)=>{let done=!!p.completed[i],ok=available(i),b=document.createElement('button');b.className='day'+(done?' done':'')+(!ok&&!done?' locked':'')+(cur===i?' selected':'');b.disabled=!ok&&!done;b.innerHTML=`<span class="emoji">${done?'✓':a[0]}</span><b>Hari ${i+1}</b><br><small>${a[1]}</small>`;b.onclick=()=>select(i);box.appendChild(b)});let n=p.completed.filter(Boolean).length;document.getElementById('count').textContent=n+' / 14 hari';document.getElementById('bar').style.width=(n/14*100)+'%';document.getElementById('finish').classList.toggle('hidden',n<14);document.getElementById('status').textContent=n<14?'Hari berikutnya terbuka 24 jam setelah check-in sebelumnya.':'Challenge selesai! 🏆'}
-function select(i){cur=i;document.getElementById('title').textContent='Hari '+(i+1)+': '+acts[i][1];document.getElementById('desc').textContent=acts[i][2];let done=!!p.completed[i],b=document.getElementById('check');b.disabled=done||!available(i);b.textContent=done?'✓ Sudah Dicatat':'Sudah Dilakukan!';render()}
-function checkIn(){if(cur<0||p.completed[cur]||!available(cur))return;p.completed[cur]={day:cur+1,date:new Date().toISOString()};save();select(cur)}
+
+const API_URL = "https://script.google.com/macros/s/AKfycbwJHXm6V1U1notBOOrh1af-1gekXmjn2Dgjomi7dtEI7DF3Ew9ybcCWexh-104XpYw/exec";
+
+const acts = [
+  ["🥤","Bawa Botol Minum Sendiri","Gunakan botol minum sendiri dan kurangi botol plastik sekali pakai."],
+  ["🛍️","Kurangi Kantong Plastik","Bawa tas belanja sendiri jika memungkinkan."],
+  ["💡","Hemat Listrik","Matikan lampu atau perangkat yang tidak digunakan."],
+  ["🗑️","Jaga Kebersihan","Buang sampah pada tempatnya dan rapikan area sekitar."],
+  ["📄","Kurangi Penggunaan Kertas","Gunakan catatan digital jika memungkinkan."],
+  ["🚰","Isi Ulang, Jangan Ganti","Isi ulang botol minum daripada membeli botol baru."],
+  ["💧","Hemat Air","Gunakan air secukupnya dan tutup keran."],
+  ["🍴","Bawa Alat Makan Sendiri","Gunakan alat makan yang bisa dipakai berulang kali."],
+  ["🪴","Rawat Tanaman","Siram atau rawat satu tanaman."],
+  ["🚶","Lebih Banyak Berjalan Kaki","Berjalan untuk perjalanan dekat jika aman."],
+  ["♻️","Gunakan Kembali","Pakai kembali barang yang masih layak."],
+  ["📣","Ajak Teman Peduli","Ajak satu teman melakukan aksi ramah lingkungan."],
+  ["🧹","Bersihkan Ruangmu","Bersihkan meja atau ruang belajar."],
+  ["🌎","Satu Aksi Kecil Terakhir","Pilih aksi ramah lingkungan yang ingin kamu teruskan."]
+];
+
+let p = null;
+let cur = -1;
+let kodeAkses = "";
+
+function api(params) {
+  return new Promise((resolve, reject) => {
+    const callback = "ecoCallback_" + Date.now() + "_" +
+      Math.random().toString(36).slice(2);
+
+    const script = document.createElement("script");
+    const query = new URLSearchParams({
+      ...params,
+      kode: kodeAkses,
+      callback
+    });
+
+    let selesai = false;
+
+    function cleanup() {
+      selesai = true;
+      clearTimeout(timer);
+      script.remove();
+      delete window[callback];
+    }
+
+    const timer = setTimeout(() => {
+      if (selesai) return;
+      cleanup();
+      reject(new Error("Server terlalu lama merespons. Coba lagi."));
+    }, 15000);
+
+    window[callback] = data => {
+      if (selesai) return;
+      cleanup();
+
+      if (data && data.ok) {
+        resolve(data);
+      } else {
+        reject(new Error(data?.message || "Permintaan gagal."));
+      }
+    };
+
+    script.onerror = () => {
+      if (selesai) return;
+      cleanup();
+      reject(new Error("Tidak dapat menghubungi server."));
+    };
+
+    script.src = API_URL + "?" + query.toString();
+    document.body.appendChild(script);
+  });
+}
+
+async function start() {
+  const name = document.getElementById("name").value.trim();
+  const npm = document.getElementById("npm").value.trim();
+  kodeAkses = document.getElementById("kode").value.trim();
+
+  if (!name || !npm || !kodeAkses) {
+    alert("Isi nama, NPM, dan kode akses kelas dulu ya!");
+    return;
+  }
+
+  const tombol = document.querySelector(".start");
+  tombol.disabled = true;
+  tombol.textContent = "Menghubungkan...";
+
+  try {
+    await api({
+      action: "register",
+      npm,
+      nama: name
+    });
+
+    const data = await api({
+      action: "progress",
+      npm
+    });
+
+    p = {
+      name: data.nama || name,
+      npm,
+      hariTerakhir: Number(data.hariTerakhir) || 0,
+      completed: Array(14).fill(null)
+    };
+
+    (data.completed || []).forEach(hari => {
+      if (Number.isInteger(Number(hari)) &&
+          hari >= 1 && hari <= 14) {
+        p.completed[hari - 1] = { day: hari };
+      }
+    });
+
+    document.getElementById("who").textContent =
+      p.name + " (" + npm + ")";
+
+    document.getElementById("login").classList.add("hidden");
+    document.getElementById("app").classList.remove("hidden");
+
+    render();
+  } catch (err) {
+    alert(err.message);
+  } finally {
+    tombol.disabled = false;
+    tombol.textContent = "Mulai Challenge";
+  }
+}
+
+function available(i) {
+  return !!p && i === p.hariTerakhir;
+}
+
+function render() {
+  const box = document.getElementById("days");
+  box.innerHTML = "";
+
+  acts.forEach((a, i) => {
+    const done = !!p.completed[i];
+    const ok = available(i);
+    const b = document.createElement("button");
+
+    b.className = "day" +
+      (done ? " done" : "") +
+      (!ok && !done ? " locked" : "") +
+      (cur === i ? " selected" : "");
+
+    b.disabled = !ok && !done;
+    b.innerHTML =
+      `<span class="emoji">${done ? "✓" : a[0]}</span>` +
+      `<b>Hari ${i + 1}</b><br><small>${a[1]}</small>`;
+
+    b.onclick = () => select(i);
+    box.appendChild(b);
+  });
+
+  const n = p.hariTerakhir;
+
+  document.getElementById("count").textContent =
+    n + " / 14 hari";
+
+  document.getElementById("bar").style.width =
+    (n / 14 * 100) + "%";
+
+  document.getElementById("finish").classList.toggle(
+    "hidden", n < 14
+  );
+
+  document.getElementById("status").textContent =
+    n < 14
+      ? "Selesaikan satu aksi setiap 24 jam."
+      : "Challenge selesai! 🏆";
+}
+
+function select(i) {
+  cur = i;
+
+  document.getElementById("title").textContent =
+    "Hari " + (i + 1) + ": " + acts[i][1];
+
+  document.getElementById("desc").textContent = acts[i][2];
+
+  const done = !!p.completed[i];
+  const b = document.getElementById("check");
+
+  b.disabled = done || !available(i);
+  b.textContent = done
+    ? "✓ Sudah Dicatat"
+    : "Sudah Dilakukan!";
+
+  render();
+}
+
+async function checkIn() {
+  if (!p || cur < 0 || p.completed[cur] || !available(cur)) {
+    return;
+  }
+
+  const tombol = document.getElementById("check");
+  tombol.disabled = true;
+  tombol.textContent = "Menyimpan...";
+
+  try {
+    await api({
+      action: "checkin",
+      npm: p.npm,
+      hari: cur + 1
+    });
+
+    const data = await api({
+      action: "progress",
+      npm: p.npm
+    });
+
+    p.hariTerakhir = Number(data.hariTerakhir) || 0;
+    p.completed = Array(14).fill(null);
+
+    (data.completed || []).forEach(hari => {
+      if (Number.isInteger(Number(hari)) &&
+          hari >= 1 && hari <= 14) {
+        p.completed[hari - 1] = { day: hari };
+      }
+    });
+
+    select(cur);
+  } catch (err) {
+    alert(err.message);
+    select(cur);
+  } finally {
+    tombol.disabled = false;
+  }
+}
 </script></body></html>
